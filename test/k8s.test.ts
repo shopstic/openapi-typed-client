@@ -36,8 +36,8 @@ Deno.test("get with no path", async () => {
     .endpoint("/api/v1/namespaces")
     .method("get");
 
-  await call(() =>
-    getSecret({
+  try {
+    await getSecret({
       query: {
         pretty: "true",
         watch: true,
@@ -45,8 +45,20 @@ Deno.test("get with no path", async () => {
       },
     }, {
       signal: abort.signal,
-    })
-  );
+    });
+  } catch (e) {
+    if (e instanceof getSecret.Error) {
+      const typed = e.typed();
+
+      if (typed.status === 401) {
+        console.error("Got 401", e.data);
+      } else {
+        console.error(typed);
+      }
+    } else {
+      console.error(e);
+    }
+  }
 });
 
 Deno.test("get with path and query", async () => {

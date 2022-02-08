@@ -186,7 +186,7 @@ function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
       super(error);
       Object.setPrototypeOf(this, new.target.prototype);
     }
-    getActualType() {
+    typed() {
       return {
         status: this.status,
         data: this.data,

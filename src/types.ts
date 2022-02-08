@@ -139,7 +139,7 @@ export type _TypedFetch<OP> = (
 
 export type TypedFetch<OP> = _TypedFetch<OP> & {
   Error: new (error: ApiError) => ApiError & {
-    getActualType: () => OpErrorType<OP>;
+    typed: () => OpErrorType<OP>;
   };
 };
 
