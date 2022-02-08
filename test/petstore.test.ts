@@ -2,19 +2,20 @@ import { ApiError, Fetcher } from "../src/index.ts";
 import type { paths } from "./petstore.ts";
 
 function createFetcher() {
-  // declare fetcher for paths
-  const fetcher = Fetcher.for<paths>();
-
-  // global configuration
-  fetcher.configure({
-    baseUrl: "https://petstore3.swagger.io/api/v3",
-    init: {
-      headers: {},
-    },
-    use: [],
-  });
-
-  return fetcher;
+  return Fetcher
+    .for<paths>()
+    .configure({
+      baseUrl: "https://petstore3.swagger.io/v3",
+      init: {
+        headers: {},
+      },
+    })
+    .use(async (url, init, next) => {
+      console.log(`before calling ${url}`, init);
+      const res = await next(url, init);
+      console.log(`after calling ${url}`, init);
+      return res;
+    });
 }
 
 async function call(fn: () => Promise<any>) {

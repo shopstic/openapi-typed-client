@@ -203,14 +203,18 @@ function fetcher<Paths>() {
   const middlewares: Middleware[] = [];
   const fetch = wrapMiddlewares(middlewares, fetchJson);
 
-  return {
+  const api = {
     configure: (config: FetchConfig) => {
       baseUrl = config.baseUrl || "";
       defaultInit = config.init || {};
       middlewares.splice(0);
       middlewares.push(...(config.use || []));
+      return api;
     },
-    use: (mw: Middleware) => middlewares.push(mw),
+    use: (mw: Middleware) => {
+      middlewares.push(mw);
+      return api;
+    },
     endpoint: <P extends keyof Paths>(path: P) => ({
       method: <M extends keyof Paths[P]>(method: M) =>
         createFetch((payload, init) =>
@@ -225,6 +229,8 @@ function fetcher<Paths>() {
         ) as TypedFetch<Paths[P][M]>,
     }),
   };
+
+  return api;
 }
 
 export const Fetcher = {
