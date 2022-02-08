@@ -2,8 +2,8 @@ import {
   _TypedFetch,
   ApiError,
   ApiResponse,
-  CreateFetch,
   CustomRequestInit,
+  DefaultPayload,
   Fetch,
   FetchConfig,
   Method,
@@ -21,55 +21,35 @@ const sendBody = (method: Method) =>
   method === "patch" ||
   method === "delete";
 
-function queryString(params: Record<string, unknown>): string {
-  const qs: string[] = [];
-
-  const encode = (key: string, value: unknown) =>
-    `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
-
-  Object.keys(params).forEach((key) => {
-    const value = params[key];
-    if (value != null) {
-      if (Array.isArray(value)) {
-        value.forEach((value) => qs.push(encode(key, value)));
-      } else {
-        qs.push(encode(key, value));
+function getPath(pathTemplate: string, pathParams?: Record<string, string>) {
+  if (pathParams) {
+    return pathTemplate.replace(/\{([^}]+)\}/g, (_, key) => {
+      if (!(key in pathParams)) {
+        throw new Error(
+          `Expected path key ${key} doesnt exist in payload: ${
+            JSON.stringify(pathParams)
+          }`,
+        );
       }
-    }
-  });
-
-  if (qs.length > 0) {
-    return `?${qs.join("&")}`;
-  }
-
-  return "";
-}
-
-function getPath(path: string, payload: Record<string, any>) {
-  return path.replace(/\{([^}]+)\}/g, (_, key) => {
-    const value = encodeURIComponent(payload[key]);
-    delete payload[key];
-    return value;
-  });
-}
-
-function getQuery(
-  method: Method,
-  payload: Record<string, any>,
-  query: string[],
-) {
-  let queryObj = {} as any;
-
-  if (sendBody(method)) {
-    query.forEach((key) => {
-      queryObj[key] = payload[key];
-      delete payload[key];
+      return encodeURIComponent(pathParams[key]);
     });
-  } else {
-    queryObj = { ...payload };
   }
 
-  return queryString(queryObj);
+  return pathTemplate;
+}
+
+function getQuery(params?: Record<string, any>) {
+  if (!params) {
+    return "";
+  }
+
+  const queryString = new URLSearchParams(params).toString();
+
+  if (queryString.length > 0) {
+    return "?" + queryString;
+  }
+
+  return queryString;
 }
 
 function getHeaders(init?: HeadersInit) {
@@ -86,7 +66,7 @@ function getHeaders(init?: HeadersInit) {
   return headers;
 }
 
-function getBody(method: Method, payload: Record<string, unknown>) {
+function getBody(method: Method, payload: unknown) {
   const body = sendBody(method) ? JSON.stringify(payload) : undefined;
   // if delete don't send body if empty
   return method === "delete" && body === "{}" ? undefined : body;
@@ -109,10 +89,8 @@ function mergeRequestInit(
 }
 
 function getFetchParams(request: Request) {
-  const payload = { ...request.payload }; // clone payload
-
-  const path = getPath(request.path, payload);
-  const query = getQuery(request.method, payload, request.queryParams);
+  const path = getPath(request.path, request.payload.path);
+  const query = getQuery(request.payload.query);
   const headers = getHeaders(request.init?.headers);
   const url = request.baseUrl + path + query;
 
@@ -120,7 +98,7 @@ function getFetchParams(request: Request) {
     ...request.init,
     method: request.method.toUpperCase(),
     headers,
-    body: getBody(request.method, payload),
+    body: getBody(request.method, request.payload.body),
   };
 
   return { url, init };
@@ -233,22 +211,18 @@ function fetcher<Paths>() {
       middlewares.push(...(config.use || []));
     },
     use: (mw: Middleware) => middlewares.push(mw),
-    path: <P extends keyof Paths>(path: P) => ({
-      method: <M extends keyof Paths[P]>(method: M) => ({
-        create:
-          ((queryParams?: Record<string, true | 1>) =>
-            createFetch((payload, init) =>
-              fetchUrl({
-                baseUrl: baseUrl || "",
-                path: path as string,
-                method: method as Method,
-                queryParams: Object.keys(queryParams || {}),
-                payload: payload as Record<string, unknown>,
-                init: mergeRequestInit(defaultInit, init),
-                fetch,
-              })
-            )) as CreateFetch<M, Paths[P][M]>,
-      }),
+    endpoint: <P extends keyof Paths>(path: P) => ({
+      method: <M extends keyof Paths[P]>(method: M) =>
+        createFetch((payload, init) =>
+          fetchUrl({
+            baseUrl: baseUrl || "",
+            path: path as string,
+            method: method as Method,
+            payload: payload as DefaultPayload,
+            init: mergeRequestInit(defaultInit, init),
+            fetch,
+          })
+        ) as TypedFetch<Paths[P][M]>,
     }),
   };
 }

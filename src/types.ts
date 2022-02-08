@@ -13,7 +13,50 @@ export type OpenapiPaths<Paths> = {
   };
 };
 
-export type OpArgType<OP> = OP extends {
+export type DefaultPayload = {
+  path?: Record<string, string>;
+  query?: Record<string, string>;
+  body?: any;
+};
+
+type ExtractPathType<OP> = OP extends {
+  parameters: {
+    path: infer P;
+  };
+} ? { path: P }
+  : {};
+
+type ExtractQueryType<OP> = OP extends {
+  parameters: {
+    query: infer Q;
+  };
+} ? { query: Q }
+  : {};
+
+type ExtractV2BodyType<OP> = OP extends {
+  parameters: {
+    body: infer B;
+  };
+} ? (B extends Record<string, unknown> ? { body: B[keyof B] }
+  : {})
+  : {};
+
+type ExtractV3BodyType<OP> = OP extends {
+  requestBody: {
+    content: {
+      "application/json": infer B;
+    };
+  };
+} ? { body: B }
+  : {};
+
+export type OpArgType<OP> =
+  & ExtractPathType<OP>
+  & ExtractQueryType<OP>
+  & ExtractV2BodyType<OP>
+  & ExtractV3BodyType<OP>;
+
+/* export type OpArgType<OP> = OP extends {
   parameters?: {
     path?: infer P;
     query?: infer Q;
@@ -25,8 +68,18 @@ export type OpArgType<OP> = OP extends {
       "application/json": infer RB;
     };
   };
-} ? P & Q & (B extends Record<string, unknown> ? B[keyof B] : unknown) & RB
-  : Record<string, never>;
+} ? (
+  & {
+    path: P extends unknown ? never : P;
+    query: Q extends unknown ? never : Q;
+  }
+  & (
+    & (B extends Record<string, unknown> ? { body: B[keyof B] }
+      : { body: never })
+    & (RB extends unknown ? { body: never } : { body: RB })
+  )
+)
+  : DefaultPayload; */
 
 type OpResponseTypes<OP> = OP extends {
   responses: infer R;
@@ -100,15 +153,6 @@ export type FetchReturnType<F> = F extends TypedFetch<infer OP>
 export type FetchErrorType<F> = F extends TypedFetch<infer OP> ? OpErrorType<OP>
   : never;
 
-type _CreateFetch<OP, Q = never> = [Q] extends [never] ? () => TypedFetch<OP>
-  : (query: Q) => TypedFetch<OP>;
-
-export type CreateFetch<M, OP> = M extends "post" | "put" | "patch" | "delete"
-  ? OP extends { parameters: { query: infer Q } }
-    ? _CreateFetch<OP, { [K in keyof Q]: true | 1 }>
-  : _CreateFetch<OP>
-  : _CreateFetch<OP>;
-
 export type Middleware = (
   url: string,
   init: CustomRequestInit,
@@ -125,8 +169,7 @@ export type Request = {
   baseUrl: string;
   method: Method;
   path: string;
-  queryParams: string[]; // even if a post these will be sent in query
-  payload: Record<string, unknown>;
+  payload: DefaultPayload;
   init?: RequestInit;
   fetch: Fetch;
 };
