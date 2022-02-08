@@ -1,31 +1,31 @@
-import { Fetcher } from './fetcher'
+import { Fetcher } from "./fetcher.ts";
 
 import type {
   ApiResponse,
   FetchArgType,
-  FetchReturnType,
   FetchErrorType,
+  FetchReturnType,
   Middleware,
   OpArgType,
-  OpErrorType,
   OpDefaultReturnType,
+  OpErrorType,
   OpReturnType,
   TypedFetch,
-} from './types'
+} from "./types.ts";
 
-import { ApiError } from './types'
+import { ApiError } from "./types.ts";
 
 export type {
-  OpArgType,
-  OpErrorType,
-  OpDefaultReturnType,
-  OpReturnType,
-  FetchArgType,
-  FetchReturnType,
-  FetchErrorType,
   ApiResponse,
+  FetchArgType,
+  FetchErrorType,
+  FetchReturnType,
   Middleware,
+  OpArgType,
+  OpDefaultReturnType,
+  OpErrorType,
+  OpReturnType,
   TypedFetch,
-}
+};
 
-export { Fetcher, ApiError }
+export { ApiError, Fetcher };
