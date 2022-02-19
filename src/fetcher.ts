@@ -38,6 +38,7 @@ function getPath(pathTemplate: string, pathParams?: Record<string, string>) {
   return pathTemplate;
 }
 
+// deno-lint-ignore no-explicit-any
 function getQuery(params?: Record<string, any>) {
   if (!params) {
     return "";
@@ -112,7 +113,7 @@ async function getResponseData(response: Response) {
   const text = await response.text();
   try {
     return JSON.parse(text);
-  } catch (e) {
+  } catch {
     return text;
   }
 }

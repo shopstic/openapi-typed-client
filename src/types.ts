@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 export type Method =
   | "get"
   | "post"
@@ -24,22 +25,22 @@ type ExtractPathType<OP> = OP extends {
     path: infer P;
   };
 } ? { path: P }
-  : {};
+  : Record<never, never>;
 
 type ExtractQueryType<OP> = OP extends {
   parameters: {
     query: infer Q;
   };
 } ? { query: Q }
-  : {};
+  : Record<never, never>;
 
 type ExtractV2BodyType<OP> = OP extends {
   parameters: {
     body: infer B;
   };
 } ? (B extends Record<string, unknown> ? { body: B[keyof B] }
-  : {})
-  : {};
+  : Record<never, never>)
+  : Record<never, never>;
 
 type ExtractV3BodyType<OP> = OP extends {
   requestBody: {
@@ -48,7 +49,7 @@ type ExtractV3BodyType<OP> = OP extends {
     };
   };
 } ? { body: B }
-  : {};
+  : Record<never, never>;
 
 export type OpArgType<OP> =
   & ExtractPathType<OP>

@@ -18,6 +18,7 @@ function createFetcher() {
     });
 }
 
+// deno-lint-ignore no-explicit-any
 async function call(fn: () => Promise<any>) {
   try {
     await fn();
