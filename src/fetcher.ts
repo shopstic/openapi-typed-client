@@ -198,7 +198,15 @@ function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
   return fun;
 }
 
-function fetcher<Paths>() {
+export interface FetcherApi<Paths> {
+  configure: (config: FetchConfig) => this;
+  use: (mw: Middleware) => this;
+  endpoint: <P extends keyof Paths>(path: P) => ({
+    method: <M extends keyof Paths[P]>(method: M) => TypedFetch<Paths[P][M]>;
+  });
+}
+
+function fetcher<Paths>(): FetcherApi<Paths> {
   let baseUrl = "";
   let defaultInit: RequestInit = {};
   const middlewares: Middleware[] = [];

@@ -1,19 +1,5 @@
-import { Fetcher } from "./fetcher.ts";
-
-import type {
-  ApiResponse,
-  FetchArgType,
-  FetchErrorType,
-  FetchReturnType,
-  Middleware,
-  OpArgType,
-  OpDefaultReturnType,
-  OpErrorType,
-  OpReturnType,
-  TypedFetch,
-} from "./types.ts";
-
-import { ApiError } from "./types.ts";
+export { Fetcher } from "./fetcher.ts";
+export type { FetcherApi } from "./fetcher.ts";
 
 export type {
   ApiResponse,
@@ -26,6 +12,6 @@ export type {
   OpErrorType,
   OpReturnType,
   TypedFetch,
-};
+} from "./types.ts";
 
-export { ApiError, Fetcher };
+export { ApiError } from "./types.ts";
