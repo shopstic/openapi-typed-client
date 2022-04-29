@@ -36,7 +36,11 @@
       in
       rec {
         devShell = pkgs.mkShellNoCC {
-          buildInputs = [ deno ];
+          buildInputs = [ deno ] ++ builtins.attrValues {
+            inherit (pkgs)
+              nodejs-16_x
+              ;
+          };
           shellHook = ''
             mkdir -p ./.vscode
             cat ${vscodeSettings} > ./.vscode/settings.json

@@ -38,13 +38,45 @@ function getPath(pathTemplate: string, pathParams?: Record<string, string>) {
   return pathTemplate;
 }
 
-// deno-lint-ignore no-explicit-any
-function getQuery(params?: Record<string, any>) {
+function objectToSearchParams(
+  obj: Record<string, unknown>,
+  searchParams?: URLSearchParams,
+  parent?: string,
+): URLSearchParams {
+  const params = searchParams || new URLSearchParams();
+
+  for (const key of Object.keys(obj)) {
+    const propName = parent ? parent + "." + key : key;
+    const leaf = obj[key];
+
+    if (Array.isArray(leaf)) {
+      leaf.forEach((v) => {
+        params.append(propName, String(v));
+      });
+    } else if (typeof leaf === "object") {
+      if (leaf instanceof Date) {
+        params.set(propName, leaf.toISOString());
+      } else if (leaf !== null) {
+        objectToSearchParams(
+          leaf as Record<string, unknown>,
+          params,
+          propName,
+        );
+      }
+    } else {
+      params.set(propName, String(leaf));
+    }
+  }
+
+  return params;
+}
+
+function getQuery(params?: Record<string, unknown>) {
   if (!params) {
     return "";
   }
 
-  const queryString = new URLSearchParams(params).toString();
+  const queryString = objectToSearchParams(params).toString();
 
   if (queryString.length > 0) {
     return "?" + queryString;
@@ -107,15 +139,12 @@ function getFetchParams(request: Request) {
 
 async function getResponseData(response: Response) {
   const contentType = response.headers.get("content-type");
+
   if (contentType && contentType.indexOf("application/json") !== -1) {
     return await response.json();
   }
-  const text = await response.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
+
+  return await response.text();
 }
 
 async function fetchJson(url: string, init: RequestInit): Promise<ApiResponse> {

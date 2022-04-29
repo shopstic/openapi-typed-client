@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "target": "esnext",
+    "lib": [
+      "dom",
+      "es2020"
+    ],
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "es2020",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noStrictGenericChecks": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "preserveSymlinks": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    ".git",
+    "node_modules"
+  ]
+}

@@ -16,7 +16,7 @@ export type OpenapiPaths<Paths> = {
 
 export type DefaultPayload = {
   path?: Record<string, string>;
-  query?: Record<string, string>;
+  query?: Record<string, unknown>;
   body?: any;
 };
 
@@ -57,31 +57,6 @@ export type OpArgType<OP> =
   & ExtractV2BodyType<OP>
   & ExtractV3BodyType<OP>;
 
-/* export type OpArgType<OP> = OP extends {
-  parameters?: {
-    path?: infer P;
-    query?: infer Q;
-    body?: infer B;
-  };
-  // openapi 3
-  requestBody?: {
-    content: {
-      "application/json": infer RB;
-    };
-  };
-} ? (
-  & {
-    path: P extends unknown ? never : P;
-    query: Q extends unknown ? never : Q;
-  }
-  & (
-    & (B extends Record<string, unknown> ? { body: B[keyof B] }
-      : { body: never })
-    & (RB extends unknown ? { body: never } : { body: RB })
-  )
-)
-  : DefaultPayload; */
-
 type OpResponseTypes<OP> = OP extends {
   responses: infer R;
 } ? {
@@ -89,6 +64,7 @@ type OpResponseTypes<OP> = OP extends {
   ? S
     : R[S] extends { content: { "application/json": infer C } } // openapi 3
     ? C
+    : R[S] extends { content: { "text/plain": infer C } } ? C
     : S extends "default" ? R[S]
     : unknown;
 }
