@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-publish() {
+build_npm() {
   VERSION=${1:?"Version is required"}
-  deno run -A ./build_npm.ts "${VERSION}"
+  deno run -A ./build-npm.ts "${VERSION}"
+}
+
+publish_npm() {
+  npm publish ./dist
 }
 
 "$@"

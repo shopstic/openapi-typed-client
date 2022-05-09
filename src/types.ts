@@ -142,7 +142,7 @@ export type FetchConfig = {
   use?: Middleware[];
 };
 
-export type Request = {
+export type FetchRequest = {
   baseUrl: string;
   method: Method;
   path: string;

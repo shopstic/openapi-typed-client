@@ -6,12 +6,12 @@ import {
   DefaultPayload,
   Fetch,
   FetchConfig,
+  FetchRequest,
   Method,
   Middleware,
   OpArgType,
   OpenapiPaths,
   OpErrorType,
-  Request,
   TypedFetch,
 } from "./types.ts";
 
@@ -121,7 +121,7 @@ function mergeRequestInit(
   return { ...first, ...second, headers };
 }
 
-function getFetchParams(request: Request) {
+function getFetchParams(request: FetchRequest) {
   const path = getPath(request.path, request.payload.path);
   const query = getQuery(request.payload.query);
   const headers = getHeaders(request.init?.headers);
@@ -191,7 +191,7 @@ function wrapMiddlewares(middlewares: Middleware[], fetch: Fetch): Fetch {
   return (url, init) => handler(0, url, init);
 }
 
-async function fetchUrl<R>(request: Request) {
+async function fetchUrl<R>(request: FetchRequest) {
   const { url, init } = getFetchParams(request);
 
   const response = await request.fetch(url, init);
