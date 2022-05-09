@@ -1,6 +1,6 @@
 {
   "name": "openapi-ts-fetch",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "",
   "main": "index.js",
   "directories": {

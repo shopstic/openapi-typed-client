@@ -27,14 +27,34 @@ await build({
   entryPoints: ["./src/index.ts"],
   outDir: distPath,
   test: false,
-  typeCheck: false,
   shims: {
     deno: false,
-    undici: true,
+    custom: [{
+      package: {
+        name: "node-fetch",
+        version: "2.6.7",
+      },
+      globalNames: [
+        {
+          name: "fetch",
+          exportName: "default",
+        },
+        ...(["Headers", "Request", "Response", "FetchError"].map((name) => ({
+          name,
+        }))),
+        ...["HeadersInit", "RequestInit"].map((name) => ({
+          name,
+          typeOnly: true,
+        })),
+      ],
+    }],
   },
   package: {
     ...packageJson,
     version,
+    devDependencies: {
+      "@types/node-fetch": "2.6.1",
+    },
   },
 });
 
