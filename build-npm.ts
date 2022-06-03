@@ -3,7 +3,7 @@ import {
   fromFileUrl,
   join,
 } from "https://deno.land/std@0.128.0/path/mod.ts";
-import { build } from "https://deno.land/x/dnt@0.23.0/mod.ts";
+import { build } from "https://deno.land/x/dnt@0.25.1/mod.ts";
 import packageJson from "./package.json" assert { type: "json" };
 
 const currentPath = dirname(fromFileUrl(import.meta.url));
@@ -29,32 +29,11 @@ await build({
   test: false,
   shims: {
     deno: false,
-    custom: [{
-      package: {
-        name: "node-fetch",
-        version: "2.6.7",
-      },
-      globalNames: [
-        {
-          name: "fetch",
-          exportName: "default",
-        },
-        ...(["Headers", "Request", "Response", "FetchError"].map((name) => ({
-          name,
-        }))),
-        ...["HeadersInit", "RequestInit"].map((name) => ({
-          name,
-          typeOnly: true,
-        })),
-      ],
-    }],
+    undici: true,
   },
   package: {
     ...packageJson,
     version,
-    devDependencies: {
-      "@types/node-fetch": "2.6.1",
-    },
   },
 });
 
