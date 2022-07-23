@@ -8,7 +8,7 @@
   };
 
   outputs = { self, nixpkgs, flakeUtils, hotPot }:
-    flakeUtils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ] (system:
+    flakeUtils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ] (system:
       let
         pkgs = import nixpkgs { inherit system; };
         hotPotPkgs = hotPot.packages.${system};
@@ -38,7 +38,7 @@
         devShell = pkgs.mkShellNoCC {
           buildInputs = [ deno ] ++ builtins.attrValues {
             inherit (pkgs)
-              nodejs-16_x
+              nodejs-18_x
               ;
           };
           shellHook = ''

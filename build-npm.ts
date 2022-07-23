@@ -2,8 +2,8 @@ import {
   dirname,
   fromFileUrl,
   join,
-} from "https://deno.land/std@0.128.0/path/mod.ts";
-import { build } from "https://deno.land/x/dnt@0.25.1/mod.ts";
+} from "https://deno.land/std@0.143.0/path/mod.ts";
+import { build } from "https://deno.land/x/dnt@0.28.0/mod.ts";
 import packageJson from "./package.json" assert { type: "json" };
 
 const currentPath = dirname(fromFileUrl(import.meta.url));
@@ -27,13 +27,13 @@ await build({
   entryPoints: ["./src/index.ts"],
   outDir: distPath,
   test: false,
-  shims: {
-    deno: false,
-    undici: true,
-  },
+  shims: {},
   package: {
     ...packageJson,
     version,
+  },
+  compilerOptions: {
+    lib: ["dom", "dom.iterable"],
   },
 });
 
