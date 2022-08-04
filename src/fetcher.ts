@@ -4,6 +4,7 @@ import {
   ApiResponse,
   CustomRequestInit,
   DefaultPayload,
+  ExtractRequestBodyMediaTypes,
   Fetch,
   FetchConfig,
   FetchRequest,
@@ -12,6 +13,7 @@ import {
   OpArgType,
   OpenapiPaths,
   OpErrorType,
+  RequestMediaType,
   TypedFetch,
 } from "./types.ts";
 
@@ -85,10 +87,13 @@ function getQuery(params?: Record<string, unknown>) {
   return queryString;
 }
 
-function getHeaders(init?: HeadersInit) {
+function getHeaders(init?: HeadersInit, mediaType?: RequestMediaType) {
   const headers = new Headers(init);
 
-  if (!headers.has("Content-Type")) {
+  if (
+    !headers.has("Content-Type") && !mediaType ||
+    mediaType === "application/json"
+  ) {
     headers.append("Content-Type", "application/json");
   }
 
@@ -99,10 +104,26 @@ function getHeaders(init?: HeadersInit) {
   return headers;
 }
 
-function getBody(method: Method, payload: unknown) {
-  const body = sendBody(method) ? JSON.stringify(payload) : undefined;
-  // if delete don't send body if empty
-  return method === "delete" && body === "{}" ? undefined : body;
+function getBody(
+  method: Method,
+  payload: unknown,
+  mediaType?: RequestMediaType,
+): string | URLSearchParams | FormData | undefined {
+  if (sendBody(method)) {
+    if (mediaType === "application/x-www-form-urlencoded") {
+      return new URLSearchParams(payload as Record<string, string>);
+    } else if (mediaType === "multipart/form-data") {
+      const body = new FormData();
+      Object.entries(payload as Record<string, string | Blob>).forEach(
+        ([k, v]) => {
+          body.append(k, v);
+        },
+      );
+      return body;
+    }
+
+    return JSON.stringify(payload);
+  }
 }
 
 function mergeRequestInit(
@@ -124,14 +145,14 @@ function mergeRequestInit(
 function getFetchParams(request: FetchRequest) {
   const path = getPath(request.path, request.payload.path);
   const query = getQuery(request.payload.query);
-  const headers = getHeaders(request.init?.headers);
+  const headers = getHeaders(request.init?.headers, request.mediaType);
   const url = request.baseUrl + path + query;
 
   const init = {
     ...request.init,
     method: request.method.toUpperCase(),
     headers,
-    body: getBody(request.method, request.payload.body),
+    body: getBody(request.method, request.payload.body, request.mediaType),
   };
 
   return { url, init };
@@ -230,9 +251,15 @@ function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
 export interface FetcherApi<Paths> {
   configure: (config: FetchConfig) => this;
   use: (mw: Middleware) => this;
-  endpoint: <P extends keyof Paths>(path: P) => ({
-    method: <M extends keyof Paths[P]>(method: M) => TypedFetch<Paths[P][M]>;
-  });
+  endpoint: <P extends keyof Paths>(path: P) => {
+    method: <
+      M extends keyof Paths[P],
+      T extends ExtractRequestBodyMediaTypes<Paths[P][M]>,
+    >(
+      method: M,
+      mediaType?: T,
+    ) => TypedFetch<Paths[P][M]>;
+  };
 }
 
 function fetcher<Paths>(): FetcherApi<Paths> {
@@ -254,12 +281,16 @@ function fetcher<Paths>(): FetcherApi<Paths> {
       return api;
     },
     endpoint: <P extends keyof Paths>(path: P) => ({
-      method: <M extends keyof Paths[P]>(method: M) =>
+      method: <
+        M extends keyof Paths[P],
+        T extends ExtractRequestBodyMediaTypes<Paths[P][M]>,
+      >(method: M, mediaType?: T) =>
         createFetch((payload, init) =>
           fetchUrl({
             baseUrl: baseUrl || "",
             path: path as string,
             method: method as Method,
+            mediaType: mediaType as RequestMediaType | undefined,
             payload: payload as DefaultPayload,
             init: mergeRequestInit(defaultInit, init),
             fetch,

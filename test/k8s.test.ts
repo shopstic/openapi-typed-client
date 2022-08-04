@@ -98,14 +98,7 @@ Deno.test("post", async () => {
       query: {
         pretty: "true",
       },
-      body: {
-        metadata: {
-          name: "foo",
-        },
-        data: {
-          bar: "baz",
-        },
-      },
+      body: {},
     }, {
       signal: abort.signal,
     })

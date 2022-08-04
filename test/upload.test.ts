@@ -1,5 +1,5 @@
 import { ApiError, Fetcher } from "../src/index.ts";
-import type { paths } from "./petstore.ts";
+import type { paths } from "./upload.ts";
 
 function createFetcher() {
   return Fetcher
@@ -31,51 +31,19 @@ async function call(fn: () => Promise<any>) {
   }
 }
 
-Deno.test("get with no path", async () => {
-  const abort = new AbortController();
-  const get = createFetcher().endpoint("/pet/findByStatus").method("get");
-
-  await call(() =>
-    get({
-      query: {
-        status: "available",
-      },
-    }, {
-      signal: abort.signal,
-    })
-  );
-});
-
-Deno.test("get with path", async () => {
-  const abort = new AbortController();
-  const get = createFetcher().endpoint("/pet/{petId}").method("get");
-
-  await call(() =>
-    get({
-      path: {
-        petId: 1234,
-      },
-    }, {
-      signal: abort.signal,
-    })
-  );
-});
-
 Deno.test("post", async () => {
   const abort = new AbortController();
-  const postSecret = createFetcher().endpoint("/store/order").method(
+  const postSecret = createFetcher().endpoint("/upload").method(
     "post",
+    "multipart/form-data",
   );
 
   await call(() =>
     postSecret({
       body: {
-        id: 10,
-        petId: 198772,
-        quantity: 7,
-        shipDate: new Date(),
-        status: "approved",
-        complete: true,
+        userId: 1,
+        orderId: 1,
+        file: new Blob(["foo bar"], { type: "text/plain" }),
       },
     }, {
       signal: abort.signal,

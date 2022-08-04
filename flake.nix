@@ -36,7 +36,10 @@
       in
       rec {
         devShell = pkgs.mkShellNoCC {
-          buildInputs = [ deno ] ++ builtins.attrValues {
+          buildInputs = [
+            deno
+            hotPotPkgs.openapi-ts
+          ] ++ builtins.attrValues {
             inherit (pkgs)
               nodejs-18_x
               ;

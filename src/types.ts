@@ -8,6 +8,11 @@ export type Method =
   | "head"
   | "options";
 
+export type RequestMediaType =
+  | "application/json"
+  | "multipart/form-data"
+  | "application/x-www-form-urlencoded";
+
 export type OpenapiPaths<Paths> = {
   [P in keyof Paths]: {
     [M in Method]?: unknown;
@@ -19,6 +24,13 @@ export type DefaultPayload = {
   query?: Record<string, unknown>;
   body?: any;
 };
+
+export type ExtractRequestBodyMediaTypes<OP> = OP extends {
+  requestBody: {
+    content: infer B;
+  };
+} ? keyof B
+  : never;
 
 type ExtractPathType<OP> = OP extends {
   parameters: {
@@ -39,13 +51,22 @@ type ExtractV2BodyType<OP> = OP extends {
     body: infer B;
   };
 } ? (B extends Record<string, unknown> ? { body: B[keyof B] }
-  : Record<never, never>)
+    : Record<never, never>)
   : Record<never, never>;
 
-type ExtractV3BodyType<OP> = OP extends {
+type ExtractV3JsonBodyType<OP> = OP extends {
   requestBody: {
     content: {
       "application/json": infer B;
+    };
+  };
+} ? { body: B }
+  : Record<never, never>;
+
+type ExtractV3FormDataBodyType<OP> = OP extends {
+  requestBody: {
+    content: {
+      "multipart/form-data": infer B;
     };
   };
 } ? { body: B }
@@ -55,19 +76,20 @@ export type OpArgType<OP> =
   & ExtractPathType<OP>
   & ExtractQueryType<OP>
   & ExtractV2BodyType<OP>
-  & ExtractV3BodyType<OP>;
+  & ExtractV3JsonBodyType<OP>
+  & ExtractV3FormDataBodyType<OP>;
 
 type OpResponseTypes<OP> = OP extends {
   responses: infer R;
 } ? {
-  [S in keyof R]: R[S] extends { schema?: infer S } // openapi 2
-  ? S
-    : R[S] extends { content: { "application/json": infer C } } // openapi 3
-    ? C
-    : R[S] extends { content: { "text/plain": infer C } } ? C
-    : S extends "default" ? R[S]
-    : unknown;
-}
+    [S in keyof R]: R[S] extends { schema?: infer S } // openapi 2
+      ? S
+      : R[S] extends { content: { "application/json": infer C } } // openapi 3
+        ? C
+      : R[S] extends { content: { "text/plain": infer C } } ? C
+      : S extends "default" ? R[S]
+      : unknown;
+  }
   : never;
 
 type _OpReturnType<T> = 200 extends keyof T ? T[200]
@@ -145,6 +167,7 @@ export type FetchConfig = {
 export type FetchRequest = {
   baseUrl: string;
   method: Method;
+  mediaType?: RequestMediaType;
   path: string;
   payload: DefaultPayload;
   init?: RequestInit;
