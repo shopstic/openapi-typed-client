@@ -1,5 +1,6 @@
 import {
   _TypedFetch,
+  _UntypedFetch,
   ApiError,
   ApiResponse,
   CustomRequestInit,
@@ -91,8 +92,8 @@ function getHeaders(init?: HeadersInit, mediaType?: RequestMediaType) {
   const headers = new Headers(init);
 
   if (
-    !headers.has("Content-Type") && !mediaType ||
-    mediaType === "application/json"
+    !headers.has("Content-Type") && (!mediaType ||
+      mediaType === "application/json")
   ) {
     headers.append("Content-Type", "application/json");
   }
@@ -158,20 +159,24 @@ function getFetchParams(request: FetchRequest) {
   return { url, init };
 }
 
-async function getResponseData(response: Response) {
+async function fetchResponse(
+  url: string,
+  init: RequestInit,
+  raw: boolean,
+): Promise<ApiResponse> {
+  const response = await fetch(url, init);
   const contentType = response.headers.get("content-type");
 
-  if (contentType && contentType.indexOf("application/json") !== -1) {
-    return await response.json();
-  }
-
-  return await response.text();
-}
-
-async function fetchJson(url: string, init: RequestInit): Promise<ApiResponse> {
-  const response = await fetch(url, init);
-
-  const data = await getResponseData(response);
+  const data = await (async () => {
+    if (raw) {
+      return response.body;
+    }
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      return await response.json();
+    } else {
+      return await response.text();
+    }
+  })();
 
   const result = {
     headers: response.headers,
@@ -220,10 +225,38 @@ async function fetchUrl<R>(request: FetchRequest) {
   return response as ApiResponse<R>;
 }
 
-function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
+export interface FetcherApi<Paths> {
+  configure: (config: FetchConfig) => this;
+  use: (mw: Middleware) => this;
+  endpoint: <P extends keyof Paths>(path: P) => {
+    method: <
+      M extends keyof Paths[P],
+      T extends ExtractRequestBodyMediaTypes<Paths[P][M]>,
+    >(
+      method: M,
+      mediaType?: T,
+    ) => TypedFetch<Paths[P][M]>;
+  };
+}
+
+function createFetch<OP>(
+  fetch: _TypedFetch<OP>,
+  fetchAsStream: _UntypedFetch<OP>,
+): TypedFetch<OP> {
   const fun = async (payload: OpArgType<OP>, init?: RequestInit) => {
     try {
       return await fetch(payload, init);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new fun.Error(err);
+      }
+      throw err;
+    }
+  };
+
+  fun.stream = async (payload: OpArgType<OP>, init?: RequestInit) => {
+    try {
+      return await fetchAsStream(payload, init);
     } catch (err) {
       if (err instanceof ApiError) {
         throw new fun.Error(err);
@@ -248,25 +281,18 @@ function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
   return fun;
 }
 
-export interface FetcherApi<Paths> {
-  configure: (config: FetchConfig) => this;
-  use: (mw: Middleware) => this;
-  endpoint: <P extends keyof Paths>(path: P) => {
-    method: <
-      M extends keyof Paths[P],
-      T extends ExtractRequestBodyMediaTypes<Paths[P][M]>,
-    >(
-      method: M,
-      mediaType?: T,
-    ) => TypedFetch<Paths[P][M]>;
-  };
-}
-
 function fetcher<Paths>(): FetcherApi<Paths> {
   let baseUrl = "";
   let defaultInit: RequestInit = {};
   const middlewares: Middleware[] = [];
-  const fetch = wrapMiddlewares(middlewares, fetchJson);
+  const typedFetch = wrapMiddlewares(
+    middlewares,
+    (args, init) => fetchResponse(args, init, false),
+  );
+  const untypedFetch = wrapMiddlewares(
+    middlewares,
+    (args, init) => fetchResponse(args, init, true),
+  );
 
   const api = {
     configure: (config: FetchConfig) => {
@@ -284,8 +310,8 @@ function fetcher<Paths>(): FetcherApi<Paths> {
       method: <
         M extends keyof Paths[P],
         T extends ExtractRequestBodyMediaTypes<Paths[P][M]>,
-      >(method: M, mediaType?: T) =>
-        createFetch((payload, init) =>
+      >(method: M, mediaType?: T) => {
+        return createFetch((payload, init) =>
           fetchUrl({
             baseUrl: baseUrl || "",
             path: path as string,
@@ -293,9 +319,18 @@ function fetcher<Paths>(): FetcherApi<Paths> {
             mediaType: mediaType as RequestMediaType | undefined,
             payload: payload as DefaultPayload,
             init: mergeRequestInit(defaultInit, init),
-            fetch,
-          })
-        ) as TypedFetch<Paths[P][M]>,
+            fetch: typedFetch,
+          }), (payload, init) =>
+          fetchUrl({
+            baseUrl: baseUrl || "",
+            path: path as string,
+            method: method as Method,
+            mediaType: mediaType as RequestMediaType | undefined,
+            payload: payload as DefaultPayload,
+            init: mergeRequestInit(defaultInit, init),
+            fetch: untypedFetch,
+          })) as TypedFetch<Paths[P][M]>;
+      },
     }),
   };
 

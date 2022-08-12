@@ -136,10 +136,16 @@ export type _TypedFetch<OP> = (
   init?: RequestInit,
 ) => Promise<ApiResponse<OpReturnType<OP>>>;
 
+export type _UntypedFetch<OP> = (
+  arg: OpArgType<OP>,
+  init?: RequestInit,
+) => Promise<ApiResponse<ReadableStream<Uint8Array> | null>>;
+
 export type TypedFetch<OP> = _TypedFetch<OP> & {
   Error: new (error: ApiError) => ApiError & {
     typed: () => OpErrorType<OP>;
   };
+  stream: _UntypedFetch<OP>;
 };
 
 export type FetchArgType<F> = F extends TypedFetch<infer OP> ? OpArgType<OP>
