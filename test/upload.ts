@@ -32,8 +32,16 @@ export interface operations {
           "application/json": components["schemas"]["UploadResult"];
         };
       };
-      /** Invalid input */
-      405: unknown;
+      401: {
+        content: {
+          "application/json": { foo: string; bar: boolean };
+        };
+      };
+      405: {
+        content: {
+          "application/json": { baz: string; boo: boolean };
+        };
+      };
     };
     requestBody: {
       content: {

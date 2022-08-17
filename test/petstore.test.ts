@@ -1,4 +1,4 @@
-import { ApiError, Fetcher } from "../src/index.ts";
+import { Fetcher, OperationError } from "../src/index.ts";
 import type { paths } from "./petstore.ts";
 
 function createFetcher() {
@@ -23,7 +23,7 @@ async function call(fn: () => Promise<any>) {
   try {
     await fn();
   } catch (e) {
-    if (e instanceof ApiError) {
+    if (e instanceof OperationError) {
       console.error(e.url, e.status, e.statusText, e.data);
     } else {
       console.error(e);

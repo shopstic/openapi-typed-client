@@ -1,4 +1,4 @@
-import { ApiError, Fetcher } from "../src/index.ts";
+import { Fetcher } from "../src/index.ts";
 import type { paths } from "./upload.ts";
 
 function createFetcher() {
@@ -18,28 +18,15 @@ function createFetcher() {
     });
 }
 
-// deno-lint-ignore no-explicit-any
-async function call(fn: () => Promise<any>) {
-  try {
-    await fn();
-  } catch (e) {
-    if (e instanceof ApiError) {
-      console.error(e.url, e.status, e.statusText, e.data);
-    } else {
-      console.error(e);
-    }
-  }
-}
-
 Deno.test("post", async () => {
   const abort = new AbortController();
-  const postSecret = createFetcher().endpoint("/upload").method(
+  const upload = createFetcher().endpoint("/upload").method(
     "post",
     "multipart/form-data",
   );
 
-  await call(() =>
-    postSecret({
+  try {
+    await upload({
       body: {
         userId: 1,
         orderId: 1,
@@ -47,6 +34,18 @@ Deno.test("post", async () => {
       },
     }, {
       signal: abort.signal,
-    })
-  );
+    });
+  } catch (e) {
+    if (e instanceof upload.Error) {
+      if (e.status === 405) {
+        console.error(e.data.baz);
+      } else if (e.status === 401) {
+        console.error(e.data.bar);
+      } else {
+        console.error(e);
+      }
+    } else {
+      console.error(e);
+    }
+  }
 });

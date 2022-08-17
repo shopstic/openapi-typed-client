@@ -2,16 +2,13 @@ export { Fetcher } from "./fetcher.ts";
 export type { FetcherApi } from "./fetcher.ts";
 
 export type {
-  ApiResponse,
-  FetchArgType,
-  FetchErrorType,
-  FetchReturnType,
-  Middleware,
-  OpArgType,
-  OpDefaultReturnType,
-  OpErrorType,
-  OpReturnType,
-  TypedFetch,
+  OpenapiClientMiddleware,
+  OperationApi,
+  OperationApiArgType,
+  OperationApiErrorType,
+  OperationApiReturnType,
+  OperationResponse,
+  OperationReturnType,
 } from "./types.ts";
 
-export { ApiError } from "./types.ts";
+export { OperationError } from "./types.ts";

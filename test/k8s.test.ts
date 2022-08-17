@@ -1,4 +1,4 @@
-import { ApiError, Fetcher } from "../src/index.ts";
+import { Fetcher, OperationError } from "../src/index.ts";
 import type { paths } from "./k8s.ts";
 
 function createFetcher() {
@@ -23,7 +23,7 @@ async function call(fn: () => Promise<any>) {
   try {
     await fn();
   } catch (e) {
-    if (e instanceof ApiError) {
+    if (e instanceof OperationError) {
       console.error(e.url, e.status, e.statusText, e.data);
     } else {
       console.error(e);
@@ -49,12 +49,12 @@ Deno.test("get with no path", async () => {
     });
   } catch (e) {
     if (e instanceof getSecret.Error) {
-      const typed = e.typed();
-
-      if (typed.status === 401) {
+      if (e.status === 401) {
         console.error("Got 401", e.data);
+      } else if (e.status === 500) {
+        console.error(e);
       } else {
-        console.error(typed);
+        console.error(e);
       }
     } else {
       console.error(e);

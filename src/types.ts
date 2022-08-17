@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-export type Method =
+export type RequestMethod =
   | "get"
   | "post"
   | "put"
@@ -14,39 +14,39 @@ export type RequestMediaType =
   | "application/x-www-form-urlencoded";
 
 export type OpenapiPaths<Paths> = {
-  [P in keyof Paths]: {
-    [M in Method]?: unknown;
+  [P in Extract<keyof Paths, string>]: {
+    [M in RequestMethod]?: unknown;
   };
 };
 
-export type DefaultPayload = {
+export type DefaultRequestPayload = {
   path?: Record<string, string>;
   query?: Record<string, unknown>;
   body?: any;
 };
 
-export type ExtractRequestBodyMediaTypes<OP> = OP extends {
+export type OperationRequestBodyMediaType<Op> = Op extends {
   requestBody: {
     content: infer B;
   };
 } ? keyof B
   : never;
 
-type ExtractPathType<OP> = OP extends {
+type OperationPathType<Op> = Op extends {
   parameters: {
     path: infer P;
   };
 } ? { path: P }
   : Record<never, never>;
 
-type ExtractQueryType<OP> = OP extends {
+type OperationQueryType<Op> = Op extends {
   parameters: {
     query: infer Q;
   };
 } ? { query: Q }
   : Record<never, never>;
 
-type ExtractV2BodyType<OP> = OP extends {
+type OperationV2BodyType<Op> = Op extends {
   parameters: {
     body: infer B;
   };
@@ -54,7 +54,7 @@ type ExtractV2BodyType<OP> = OP extends {
     : Record<never, never>)
   : Record<never, never>;
 
-type ExtractV3JsonBodyType<OP> = OP extends {
+type OperationV3JsonBodyType<Op> = Op extends {
   requestBody: {
     content: {
       "application/json": infer B;
@@ -63,7 +63,7 @@ type ExtractV3JsonBodyType<OP> = OP extends {
 } ? { body: B }
   : Record<never, never>;
 
-type ExtractV3FormDataBodyType<OP> = OP extends {
+type OperationV3FormDataBodyType<Op> = Op extends {
   requestBody: {
     content: {
       "multipart/form-data": infer B;
@@ -72,14 +72,14 @@ type ExtractV3FormDataBodyType<OP> = OP extends {
 } ? { body: B }
   : Record<never, never>;
 
-export type OpArgType<OP> =
-  & ExtractPathType<OP>
-  & ExtractQueryType<OP>
-  & ExtractV2BodyType<OP>
-  & ExtractV3JsonBodyType<OP>
-  & ExtractV3FormDataBodyType<OP>;
+export type OperationArgType<Op> =
+  & OperationPathType<Op>
+  & OperationQueryType<Op>
+  & OperationV2BodyType<Op>
+  & OperationV3JsonBodyType<Op>
+  & OperationV3FormDataBodyType<Op>;
 
-type OpResponseTypes<OP> = OP extends {
+type OperationResponsesType<Op> = Op extends {
   responses: infer R;
 } ? {
     [S in keyof R]: R[S] extends { schema?: infer S } // openapi 2
@@ -92,35 +92,34 @@ type OpResponseTypes<OP> = OP extends {
   }
   : never;
 
-type _OpReturnType<T> = 200 extends keyof T ? T[200]
-  : 201 extends keyof T ? T[201]
-  : "default" extends keyof T ? T["default"]
+type SuccessResponsesType<R> = 200 extends keyof R ? R[200]
+  : 201 extends keyof R ? R[201]
+  : "default" extends keyof R ? R["default"]
   : unknown;
 
-export type OpReturnType<OP> = _OpReturnType<OpResponseTypes<OP>>;
+export type OperationReturnType<Op> = SuccessResponsesType<
+  OperationResponsesType<Op>
+>;
 
-type _OpDefaultReturnType<T> = "default" extends keyof T ? T["default"]
-  : unknown;
-
-export type OpDefaultReturnType<OP> = _OpDefaultReturnType<OpResponseTypes<OP>>;
-
-// private symbol to prevent narrowing on "default" error status
-const never: unique symbol = Symbol();
-
-type _OpErrorType<T> = {
-  [S in Exclude<keyof T, 200 | 201>]: {
-    status: S extends "default" ? typeof never : S;
-    data: T[S];
-  };
-}[Exclude<keyof T, 200 | 201>];
+type ErrorResponsesType<
+  R,
+  K extends keyof R = Exclude<keyof R, 200 | 201 | "default">,
+> = {
+  [S in K]: OperationResponse<S, R[S]>;
+}[K];
 
 type Coalesce<T, D> = [T] extends [never] ? D : T;
 
-// coalesce default error type
-export type OpErrorType<OP> = Coalesce<
-  _OpErrorType<OpResponseTypes<OP>>,
-  { status: number; data: any }
+export type OperationErrorType<Op> = Coalesce<
+  ErrorResponsesType<
+    OperationResponsesType<Op>
+  >,
+  OperationResponse<number, any>
 >;
+
+export type OperationErrorConstructorType<Op> = new (
+  error: Omit<OperationResponse, "ok">,
+) => OperationErrorType<Op>;
 
 export type CustomRequestInit = Omit<RequestInit, "headers"> & {
   readonly headers: Headers;
@@ -129,76 +128,83 @@ export type CustomRequestInit = Omit<RequestInit, "headers"> & {
 export type Fetch = (
   url: string,
   init: CustomRequestInit,
-) => Promise<ApiResponse>;
+) => Promise<OperationResponse>;
 
-export type _TypedFetch<OP> = (
-  arg: OpArgType<OP>,
+export type TypedFetch<Op> = (
+  arg: OperationArgType<Op>,
   init?: RequestInit,
-) => Promise<ApiResponse<OpReturnType<OP>>>;
+) => Promise<OperationResponse<OperationReturnType<Op>>>;
 
-export type _UntypedFetch<OP> = (
-  arg: OpArgType<OP>,
+export type RawFetch<Op> = (
+  arg: OperationArgType<Op>,
   init?: RequestInit,
-) => Promise<ApiResponse<ReadableStream<Uint8Array> | null>>;
+) => Promise<OperationResponse<ReadableStream<Uint8Array> | null>>;
 
-export type TypedFetch<OP> = _TypedFetch<OP> & {
-  Error: new (error: ApiError) => ApiError & {
-    typed: () => OpErrorType<OP>;
-  };
-  stream: _UntypedFetch<OP>;
+export type OperationApi<Op> = TypedFetch<Op> & {
+  Error: OperationErrorConstructorType<Op>;
+  stream: RawFetch<Op>;
 };
 
-export type FetchArgType<F> = F extends TypedFetch<infer OP> ? OpArgType<OP>
+export type OperationApiArgType<F> = F extends OperationApi<infer Op>
+  ? OperationArgType<Op>
   : never;
 
-export type FetchReturnType<F> = F extends TypedFetch<infer OP>
-  ? OpReturnType<OP>
+export type OperationApiReturnType<F> = F extends OperationApi<infer Op>
+  ? OperationReturnType<Op>
   : never;
 
-export type FetchErrorType<F> = F extends TypedFetch<infer OP> ? OpErrorType<OP>
+export type OperationApiErrorType<F> = F extends OperationApi<infer Op>
+  ? OperationErrorConstructorType<Op>
   : never;
 
-export type Middleware = (
+export type OpenapiClientMiddleware = (
   url: string,
   init: CustomRequestInit,
   next: Fetch,
-) => Promise<ApiResponse>;
+) => Promise<OperationResponse>;
 
-export type FetchConfig = {
+export type OpenapiClientConfig = {
   baseUrl?: string;
   init?: RequestInit;
-  use?: Middleware[];
+  use?: OpenapiClientMiddleware[];
 };
 
 export type FetchRequest = {
   baseUrl: string;
-  method: Method;
+  method: RequestMethod;
   mediaType?: RequestMediaType;
   path: string;
-  payload: DefaultPayload;
+  payload: DefaultRequestPayload;
   init?: RequestInit;
   fetch: Fetch;
 };
 
-export type ApiResponse<R = any> = {
+export type OperationResponse<S = any, R = any> = {
   readonly headers: Headers;
   readonly url: string;
   readonly ok: boolean;
-  readonly status: number;
+  readonly status: S;
   readonly statusText: string;
   readonly data: R;
 };
 
-export class ApiError extends Error {
+export class OperationError extends Error {
   readonly headers: Headers;
   readonly url: string;
   readonly status: number;
   readonly statusText: string;
   readonly data: any;
 
-  constructor(response: Omit<ApiResponse, "ok">) {
+  constructor(response: Omit<OperationResponse, "ok">) {
     super(response.statusText);
     Object.setPrototypeOf(this, new.target.prototype);
+    Object.defineProperty(this, "message", {
+      get() {
+        return JSON.stringify(this);
+      },
+      enumerable: false,
+      configurable: false,
+    });
 
     this.headers = response.headers;
     this.url = response.url;
