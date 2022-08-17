@@ -1,6 +1,6 @@
 {
-  "name": "openapi-ts-fetch",
-  "version": "2.2.0",
+  "name": "openapi-typed-client",
+  "version": "3.0.0",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shopstic/openapi-typescript-fetch-deno.git"
+    "url": "git+https://github.com/shopstic/openapi-typed-client.git"
   },
   "author": "",
   "license": "Apache 2.0",
   "bugs": {
-    "url": "https://github.com/shopstic/openapi-typescript-fetch-deno/issues"
+    "url": "https://github.com/shopstic/openapi-typed-client/issues"
   },
-  "homepage": "https://github.com/shopstic/openapi-typescript-fetch-deno#readme",
+  "homepage": "https://github.com/shopstic/openapi-typed-client#readme",
   "devDependencies": {
     "@types/node": "^18.0.6"
   }

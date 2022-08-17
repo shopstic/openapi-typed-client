@@ -1,16 +1,14 @@
-import { Fetcher } from "../src/index.ts";
+import { createOpenapiClient } from "../src/client.ts";
 import type { paths } from "./upload.ts";
 
 function createFetcher() {
-  return Fetcher
-    .for<paths>()
-    .configure({
-      baseUrl: "https://petstore3.swagger.io/v3",
-      init: {
-        headers: {},
-      },
-    })
-    .use(async (url, init, next) => {
+  return createOpenapiClient<paths>({
+    baseUrl: "https://petstore3.swagger.io/v3",
+    options: {
+      headers: {},
+    },
+  })
+    .withMiddleware(async (url, init, next) => {
       console.log(`before calling ${url}`, init);
       const res = await next(url, init);
       console.log(`after calling ${url}`, init);

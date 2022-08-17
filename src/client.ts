@@ -1,23 +1,22 @@
 import {
-  CustomRequestInit,
-  Fetch,
-  FetchRequest,
-  OpenapiClientConfig,
   OpenapiClientMiddleware,
+  OpenapiFetchRequest,
+  OpenapiOperationApi,
+  OpenapiOperationArgType,
+  OpenapiOperationError,
+  OpenapiOperationErrorConstructorType,
+  OpenapiOperationRequestBodyMediaType,
+  OpenapiOperationResponse,
   OpenapiPaths,
-  OperationApi,
-  OperationArgType,
-  OperationError,
-  OperationErrorConstructorType,
-  OperationRequestBodyMediaType,
-  OperationResponse,
-  RawFetch,
-  RequestMediaType,
-  RequestMethod,
+  OpenapiRequestMediaType,
+  OpenapiRequestMethod,
+  OpenapiRequestOptions,
+  ReadableStreamFetch,
   TypedFetch,
+  UntypedFetch,
 } from "./types.ts";
 
-const canSendBody = (method: RequestMethod) =>
+const canSendBody = (method: OpenapiRequestMethod) =>
   method === "post" ||
   method === "put" ||
   method === "patch" ||
@@ -87,7 +86,10 @@ function createQueryString(params?: Record<string, unknown>) {
   return queryString;
 }
 
-function createHeaders(init?: HeadersInit, mediaType?: RequestMediaType) {
+function createHeaders(
+  init?: HeadersInit,
+  mediaType?: OpenapiRequestMediaType,
+) {
   const headers = new Headers(init);
 
   if (
@@ -105,9 +107,9 @@ function createHeaders(init?: HeadersInit, mediaType?: RequestMediaType) {
 }
 
 function createRequestBody(
-  method: RequestMethod,
+  method: OpenapiRequestMethod,
   payload: unknown,
-  mediaType?: RequestMediaType,
+  mediaType?: OpenapiRequestMediaType,
 ): string | URLSearchParams | FormData | undefined {
   if (canSendBody(method)) {
     if (mediaType === "application/x-www-form-urlencoded") {
@@ -126,6 +128,14 @@ function createRequestBody(
   }
 }
 
+function cloneRequestInit(init: RequestInit) {
+  const { headers, ...rest } = init;
+  return {
+    ...rest,
+    headers: headers ? new Headers(headers) : undefined,
+  };
+}
+
 function mergeRequestInit(
   first?: RequestInit,
   second?: RequestInit,
@@ -142,7 +152,7 @@ function mergeRequestInit(
   return { ...first, ...second, headers };
 }
 
-function getFetchParams(request: FetchRequest) {
+function getFetchParams(request: OpenapiFetchRequest) {
   const path = renderPath(request.path, request.payload.path);
   const query = createQueryString(request.payload.query);
   const headers = createHeaders(request.init?.headers, request.mediaType);
@@ -166,7 +176,7 @@ async function fetchResponse(
   url: string,
   init: RequestInit,
   raw: boolean,
-): Promise<OperationResponse> {
+): Promise<OpenapiOperationResponse> {
   const response = await fetch(url, init);
 
   const data = await (async () => {
@@ -196,30 +206,29 @@ async function fetchResponse(
     return result;
   }
 
-  throw new OperationError(result);
+  throw new OpenapiOperationError(result);
 }
 
 type RequestHandler = (
   index: number,
   url: string,
-  init: CustomRequestInit,
-) => Promise<OperationResponse>;
+  init: RequestInit,
+) => Promise<OpenapiOperationResponse>;
 
 function wrapMiddlewares(
   middlewares: OpenapiClientMiddleware[],
-  fetch: Fetch,
-): Fetch {
+  fetch: UntypedFetch,
+): UntypedFetch {
   const handler: RequestHandler = async (index, url, init) => {
-    if (middlewares == null || index === middlewares.length) {
+    if (index === middlewares.length) {
       return fetch(url, init);
     }
 
     const current = middlewares[index];
-    init = init || { headers: createHeaders() };
 
     return await current(
       url,
-      init,
+      cloneRequestInit(init),
       (nextUrl, nextInit) => handler(index + 1, nextUrl, nextInit),
     );
   };
@@ -227,40 +236,43 @@ function wrapMiddlewares(
   return (url, init) => handler(0, url, init);
 }
 
-async function fetchUrl<R>(request: FetchRequest) {
+async function fetchUrl<R>(request: OpenapiFetchRequest) {
   const { url, init } = getFetchParams(request);
 
   const response = await request.fetch(url, init);
 
-  return response as OperationResponse<R>;
+  return response as OpenapiOperationResponse<R>;
 }
 
-export interface FetcherApi<Paths> {
-  configure: (config: OpenapiClientConfig) => this;
-  use: (mw: OpenapiClientMiddleware) => this;
+export interface OpenapiClient<Paths> {
+  withBaseUrl: (baseUrl: string) => this;
+  withOptions: (
+    updater: (currentOptions: OpenapiRequestOptions) => OpenapiRequestOptions,
+  ) => this;
+  withMiddleware: (mw: OpenapiClientMiddleware) => this;
   endpoint: <P extends Extract<keyof Paths, string>>(path: P) => {
     method: <
-      M extends Extract<keyof Paths[P], RequestMethod>,
-      T extends OperationRequestBodyMediaType<Paths[P][M]>,
+      M extends Extract<keyof Paths[P], OpenapiRequestMethod>,
+      T extends OpenapiOperationRequestBodyMediaType<Paths[P][M]>,
     >(
       method: M,
       mediaType?: T,
-    ) => OperationApi<Paths[P][M]>;
+    ) => OpenapiOperationApi<Paths[P][M]>;
   };
 }
 
 function createFetch<OP>(
   fetch: TypedFetch<OP>,
-  fetchAsStream: RawFetch<OP>,
-): OperationApi<OP> {
+  fetchAsStream: ReadableStreamFetch<OP>,
+): OpenapiOperationApi<OP> {
   const fun = async (
-    payload: OperationArgType<OP>,
+    payload: OpenapiOperationArgType<OP>,
     init?: RequestInit,
   ) => {
     try {
       return await fetch(payload, init);
     } catch (err) {
-      if (err instanceof OperationError) {
+      if (err instanceof OpenapiOperationError) {
         throw new fun.Error(err);
       }
       throw err;
@@ -268,35 +280,37 @@ function createFetch<OP>(
   };
 
   fun.stream = async (
-    payload: OperationArgType<OP>,
+    payload: OpenapiOperationArgType<OP>,
     init?: RequestInit,
   ) => {
     try {
       return await fetchAsStream(payload, init);
     } catch (err) {
-      if (err instanceof OperationError) {
+      if (err instanceof OpenapiOperationError) {
         throw new fun.Error(err);
       }
       throw err;
     }
   };
 
-  fun.Error = class extends OperationError {
-    constructor(error: OperationResponse) {
+  fun.Error = class extends OpenapiOperationError {
+    constructor(error: OpenapiOperationResponse) {
       super(error);
       Object.setPrototypeOf(this, new.target.prototype);
     }
     // deno-lint-ignore no-explicit-any
-  } as any as OperationErrorConstructorType<OP>;
+  } as any as OpenapiOperationErrorConstructorType<OP>;
 
   return fun;
 }
 
-function fetcher<Paths extends OpenapiPaths<Paths>>(): FetcherApi<Paths> {
-  let baseUrl = "";
-  let defaultInit: RequestInit = {};
-  const middlewares: OpenapiClientMiddleware[] = [];
-
+export function createOpenapiClient<Paths extends OpenapiPaths<Paths>>(
+  { baseUrl, options = {}, middlewares = [] }: {
+    baseUrl: string;
+    options?: OpenapiRequestOptions;
+    middlewares?: OpenapiClientMiddleware[];
+  },
+): OpenapiClient<Paths> {
   const typedFetch = wrapMiddlewares(
     middlewares,
     (args, init) => fetchResponse(args, init, false),
@@ -306,22 +320,25 @@ function fetcher<Paths extends OpenapiPaths<Paths>>(): FetcherApi<Paths> {
     (args, init) => fetchResponse(args, init, true),
   );
 
-  const api = {
-    configure: (config: OpenapiClientConfig) => {
-      baseUrl = config.baseUrl || "";
-      defaultInit = config.init || {};
-      middlewares.splice(0);
-      middlewares.push(...(config.use || []));
-      return api;
+  const api: OpenapiClient<Paths> = {
+    withBaseUrl(baseUrl) {
+      return createOpenapiClient({ baseUrl, options, middlewares });
     },
-    use: (mw: OpenapiClientMiddleware) => {
-      middlewares.push(mw);
-      return api;
+    withOptions(updater) {
+      const newOptions = updater(cloneRequestInit(options));
+      return createOpenapiClient({ baseUrl, options: newOptions, middlewares });
+    },
+    withMiddleware: (mw: OpenapiClientMiddleware) => {
+      return createOpenapiClient({
+        baseUrl,
+        options,
+        middlewares: middlewares.concat([mw]),
+      });
     },
     endpoint: <P extends Extract<keyof Paths, string>>(path: P) => ({
       method: <
-        M extends Extract<keyof Paths[P], RequestMethod>,
-        T extends OperationRequestBodyMediaType<Paths[P][M]>,
+        M extends Extract<keyof Paths[P], OpenapiRequestMethod>,
+        T extends OpenapiOperationRequestBodyMediaType<Paths[P][M]>,
       >(method: M, mediaType?: T) => {
         return createFetch<Paths[P][M]>((payload, init) =>
           fetchUrl({
@@ -330,7 +347,7 @@ function fetcher<Paths extends OpenapiPaths<Paths>>(): FetcherApi<Paths> {
             method,
             mediaType,
             payload,
-            init: mergeRequestInit(defaultInit, init),
+            init: mergeRequestInit(options, init),
             fetch: typedFetch,
           }), (payload, init) =>
           fetchUrl({
@@ -339,7 +356,7 @@ function fetcher<Paths extends OpenapiPaths<Paths>>(): FetcherApi<Paths> {
             method,
             mediaType,
             payload,
-            init: mergeRequestInit(defaultInit, init),
+            init: mergeRequestInit(options, init),
             fetch: untypedFetch,
           }));
       },
@@ -348,7 +365,3 @@ function fetcher<Paths extends OpenapiPaths<Paths>>(): FetcherApi<Paths> {
 
   return api;
 }
-
-export const Fetcher = {
-  for: <Paths extends OpenapiPaths<Paths>>() => fetcher<Paths>(),
-};
