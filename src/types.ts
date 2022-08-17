@@ -105,7 +105,7 @@ type OpenapiErrorResponsesType<
   R,
   K extends keyof R = Exclude<keyof R, 200 | 201 | "default">,
 > = {
-  [S in K]: OpenapiOperationResponse<S, R[S]>;
+  [S in K]: OpenapiOperationResponse<R[S], S>;
 }[K];
 
 type Coalesce<T, D> = [T] extends [never] ? D : T;
@@ -115,7 +115,7 @@ export type OpenapiOperationErrorType<Op> = Coalesce<
     OpenapiOperationResponsesType<Op>
   >,
   // deno-lint-ignore no-explicit-any
-  OpenapiOperationResponse<number, any>
+  OpenapiOperationResponse<any, number>
 >;
 
 export type OpenapiOperationErrorConstructorType<Op> = new (
@@ -173,7 +173,7 @@ export type OpenapiFetchRequest = {
 };
 
 // deno-lint-ignore no-explicit-any
-export type OpenapiOperationResponse<S = any, R = any> = {
+export type OpenapiOperationResponse<R = any, S = any> = {
   readonly headers: Headers;
   readonly url: string;
   readonly ok: boolean;

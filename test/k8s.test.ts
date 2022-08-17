@@ -32,12 +32,12 @@ async function call(fn: () => Promise<any>) {
 
 Deno.test("get with no path", async () => {
   const abort = new AbortController();
-  const getSecret = createFetcher()
+  const getNamespaces = createFetcher()
     .endpoint("/api/v1/namespaces")
     .method("get");
 
   try {
-    await getSecret({
+    const namespaces = (await getNamespaces({
       query: {
         pretty: "true",
         watch: true,
@@ -45,9 +45,11 @@ Deno.test("get with no path", async () => {
       },
     }, {
       signal: abort.signal,
-    });
+    })).data;
+
+    console.log("namespaces", namespaces.items.map((n) => n.metadata?.name));
   } catch (e) {
-    if (e instanceof getSecret.Error) {
+    if (e instanceof getNamespaces.Error) {
       if (e.status === 401) {
         console.error("Got 401", e.data);
       } else if (e.status === 500) {
