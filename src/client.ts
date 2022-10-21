@@ -186,7 +186,7 @@ async function fetchResponse(
 
     const contentType = response.headers.get("content-type");
 
-    if (contentType && contentType.indexOf("application/json") !== -1) {
+    if (contentType && /application\/([^+]+\+)?json/.test(contentType)) {
       return await response.json();
     }
 
