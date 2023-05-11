@@ -144,16 +144,14 @@ export type OpenapiOperationApi<Op> = TypedFetch<Op> & {
   stream: ReadableStreamFetch<Op>;
 };
 
-export type OpenapiOperationApiArgType<F> = F extends
-  OpenapiOperationApi<infer Op> ? OpenapiOperationArgType<Op>
+export type OpenapiOperationApiArgType<F> = F extends OpenapiOperationApi<infer Op> ? OpenapiOperationArgType<Op>
   : never;
 
-export type OpenapiOperationApiReturnType<F> = F extends
-  OpenapiOperationApi<infer Op> ? OpenapiOperationReturnType<Op>
+export type OpenapiOperationApiReturnType<F> = F extends OpenapiOperationApi<infer Op> ? OpenapiOperationReturnType<Op>
   : never;
 
-export type OpenapiOperationApiErrorType<F> = F extends
-  OpenapiOperationApi<infer Op> ? OpenapiOperationErrorConstructorType<Op>
+export type OpenapiOperationApiErrorType<F> = F extends OpenapiOperationApi<infer Op>
+  ? OpenapiOperationErrorConstructorType<Op>
   : never;
 
 export type OpenapiClientMiddleware = (

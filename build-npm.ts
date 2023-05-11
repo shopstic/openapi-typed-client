@@ -2,18 +2,12 @@ import {
   dirname,
   fromFileUrl,
   join,
-} from "https://deno.land/std@0.143.0/path/mod.ts";
-import { build } from "https://deno.land/x/dnt@0.28.0/mod.ts";
+} from "https://deno.land/std@0.182.0/path/mod.ts";
+import { build } from "https://deno.land/x/dnt@0.35.0/mod.ts";
 import packageJson from "./package.json" assert { type: "json" };
 
 const currentPath = dirname(fromFileUrl(import.meta.url));
 const distPath = join(currentPath, "dist");
-
-const version = Deno.args[0];
-
-if (typeof version !== "string") {
-  throw new Error("Version is required, pass it as the first argument");
-}
 
 try {
   await Deno.remove(distPath, { recursive: true });
@@ -28,10 +22,7 @@ await build({
   outDir: distPath,
   test: false,
   shims: {},
-  package: {
-    ...packageJson,
-    version,
-  },
+  package: packageJson,
   compilerOptions: {
     lib: ["dom", "dom.iterable"],
   },

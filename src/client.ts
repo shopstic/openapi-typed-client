@@ -64,7 +64,7 @@ function objectToSearchParams(
           propName,
         );
       }
-    } else {
+    } else if (typeof leaf !== "undefined") {
       params.set(propName, String(leaf));
     }
   }
