@@ -27,9 +27,7 @@ function renderPath(template: string, params?: Record<string, string>) {
     return template.replace(/\{([^}]+)\}/g, (_, key) => {
       if (!(key in params)) {
         throw new Error(
-          `Expected path key ${key} doesnt exist in payload: ${
-            JSON.stringify(params)
-          }`,
+          `Expected path key ${key} doesnt exist in payload: ${JSON.stringify(params)}`,
         );
       }
       return encodeURIComponent(params[key]);
@@ -176,8 +174,9 @@ async function fetchResponse(
   url: string,
   init: RequestInit,
   raw: boolean,
+  fetchImpl: FetchImpl,
 ): Promise<OpenapiOperationResponse> {
-  const response = await fetch(url, init);
+  const response = await fetchImpl(url, init);
 
   const data = await (async () => {
     if (raw) {
@@ -250,6 +249,7 @@ export interface OpenapiClient<Paths> {
     updater: (currentOptions: OpenapiRequestOptions) => OpenapiRequestOptions,
   ) => this;
   withMiddleware: (mw: OpenapiClientMiddleware) => this;
+  withFetchImpl: (fetchImpl: FetchImpl) => this;
   endpoint: <P extends Extract<keyof Paths, string>>(path: P) => {
     method: <
       M extends Extract<keyof Paths[P], OpenapiRequestMethod>,
@@ -304,35 +304,50 @@ function createFetch<OP>(
   return fun;
 }
 
+type FetchImpl = (
+  input: URL | Request | string,
+  init?: RequestInit,
+) => Promise<Response>;
+
 export function createOpenapiClient<Paths extends OpenapiPaths<Paths>>(
-  { baseUrl, options = {}, middlewares = [] }: {
+  { baseUrl, fetchImpl = fetch, options = {}, middlewares = [] }: {
     baseUrl: string;
+    fetchImpl?: FetchImpl;
     options?: OpenapiRequestOptions;
     middlewares?: OpenapiClientMiddleware[];
   },
 ): OpenapiClient<Paths> {
   const typedFetch = wrapMiddlewares(
     middlewares,
-    (args, init) => fetchResponse(args, init, false),
+    (args, init) => fetchResponse(args, init, false, fetchImpl),
   );
   const untypedFetch = wrapMiddlewares(
     middlewares,
-    (args, init) => fetchResponse(args, init, true),
+    (args, init) => fetchResponse(args, init, true, fetchImpl),
   );
 
   const api: OpenapiClient<Paths> = {
     withBaseUrl(baseUrl) {
-      return createOpenapiClient({ baseUrl, options, middlewares });
+      return createOpenapiClient({ baseUrl, options, middlewares, fetchImpl });
     },
     withOptions(updater) {
       const newOptions = updater(cloneRequestInit(options));
-      return createOpenapiClient({ baseUrl, options: newOptions, middlewares });
+      return createOpenapiClient({ baseUrl, options: newOptions, middlewares, fetchImpl });
     },
     withMiddleware: (mw: OpenapiClientMiddleware) => {
       return createOpenapiClient({
         baseUrl,
         options,
         middlewares: middlewares.concat([mw]),
+        fetchImpl,
+      });
+    },
+    withFetchImpl: (fetchImpl: FetchImpl) => {
+      return createOpenapiClient({
+        baseUrl,
+        options,
+        fetchImpl,
+        middlewares,
       });
     },
     endpoint: <P extends Extract<keyof Paths, string>>(path: P) => ({
