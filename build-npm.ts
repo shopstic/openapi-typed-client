@@ -22,6 +22,7 @@ await build({
   outDir: distPath,
   test: false,
   shims: {},
+  declaration: "separate",
   package: packageJson,
   compilerOptions: {
     lib: ["DOM", "DOM.Iterable"],
